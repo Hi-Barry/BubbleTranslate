@@ -1,0 +1,101 @@
+name: Build Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK (arm64-v8a)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build unsigned release APK
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;34.0.0'
+
+      - name: Sign APK with apksigner
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -e
+          # Decode keystore
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > bubbletranslate.jks
+
+          # Find unsigned APK
+          UNSIGNED=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          SIGNED="app/build/outputs/apk/release/app-release-signed.apk"
+
+          # Sign with apksigner
+          $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
+            --ks bubbletranslate.jks \
+            --ks-pass pass:"$SIGNING_STORE_PASSWORD" \
+            --ks-key-alias "$SIGNING_KEY_ALIAS" \
+            --key-pass pass:"$SIGNING_KEY_PASSWORD" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --out "$SIGNED" \
+            "$UNSIGNED"
+
+          # Verify
+          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose "$SIGNED"
+
+          # Replace unsigned with signed (rename with version)
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | sed "s/.*\"\\(.*\\)\".*/\\1/")
+          FINAL="app/build/outputs/apk/release/PopupTranslation-${VERSION_NAME}-arm64-v8a.apk"
+          rm "$UNSIGNED"
+          mv "$SIGNED" "$FINAL"
+
+          echo "signed=true" >> $GITHUB_OUTPUT
+
+      - name: Find APK
+        id: apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "app-release.apk" -o -name "*.apk" | head -1)
+          echo "path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "name=$(basename "$APK_PATH")" >> $GITHUB_OUTPUT
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PopupTranslation-arm64-v8a
+          path: ${{ steps.apk.outputs.path }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.apk.outputs.path }}
+          generate_release_notes: true

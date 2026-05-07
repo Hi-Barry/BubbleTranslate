@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BubbleTranslate</string>
+    <string name="start_service">Start Translation Bubble</string>
+    <string name="stop_service">Stop Translation Bubble</string>
+
+    <!-- 翻译模式 -->
+    <string name="translation_mode_label">Translation Mode</string>
+    <string name="mode_local">🌐 Local (Google)</string>
+    <string name="mode_remote">🤖 Remote (LLM)</string>
+    <string name="mode_hint_local">Using Google Translate — no API key needed. Switch to Remote for LLM-powered translation.</string>
+    <string name="mode_hint_remote_with_key">Using LLM translation. Switch to Local to save API quota.</string>
+    <string name="mode_hint_remote_no_key">No API key configured — will use Google Translate as fallback.</string>
+
+    <string name="api_key_label">Kimi API Key</string>
+    <string name="api_key_hint">Enter your Moonshot API key</string>
+    <string name="api_base_url_label">API Base URL</string>
+    <string name="api_base_url_hint">https://api.moonshot.cn/v1</string>
+    <string name="model_label">Model</string>
+    <string name="model_hint">kimi-k2.6</string>
+    <string name="save">Save</string>
+    <string name="translating">Translating…</string>
+    <string name="translation_result">Translation</string>
+    <string name="no_text_found">No text recognized, please try another area.</string>
+    <string name="error_api_key">Please set your API key first.</string>
+    <string name="error_network">Network error. Please check your connection.</string>
+    <string name="permission_overlay_required">Overlay permission is required for the floating bubble.</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="status_running">Bubble is active</string>
+    <string name="status_stopped">Bubble is stopped</string>
+    <string name="instruction">Tap the bubble on any screen,\nthen select an area to translate.</string>
+    <string name="bubble_opacity">Bubble Opacity</string>
+    <string name="copy_text">Copy</string>
+    <string name="copied">Copied to clipboard</string>
+</resources>

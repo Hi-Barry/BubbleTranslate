@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">泡泡翻译</string>
+    <string name="start_service">启动翻译泡泡</string>
+    <string name="stop_service">停止翻译泡泡</string>
+    <string name="api_key_label">Kimi API 密钥</string>
+    <string name="api_key_hint">请输入您的 Moonshot API 密钥</string>
+    <string name="save">保存</string>
+    <string name="translating">翻译中…</string>
+    <string name="translation_result">翻译结果</string>
+    <string name="no_text_found">未识别到文字，请尝试其他区域。</string>
+    <string name="error_api_key">请先设置您的 API 密钥。</string>
+    <string name="error_network">网络错误，请检查网络连接。</string>
+    <string name="permission_overlay_required">需要悬浮窗权限才能显示翻译泡泡。</string>
+    <string name="open_settings">打开设置</string>
+    <string name="status_running">泡泡翻译已激活</string>
+    <string name="status_stopped">泡泡翻译已停止</string>
+    <string name="instruction">点击任意屏幕上的泡泡，\n框选区域即可翻译。</string>
+    <string name="bubble_opacity">泡泡透明度</string>
+    <string name="copy_text">复制</string>
+    <string name="copied">已复制到剪贴板</string>
+</resources>
