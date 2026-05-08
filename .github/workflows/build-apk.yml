@@ -31,17 +31,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build unsigned release APK
-        env:
-          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew assembleRelease
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'build-tools;34.0.0'
 
       - name: Sign APK with apksigner
         env:
@@ -50,16 +40,45 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          set -e
-          # Decode keystore
+          set -euo pipefail
+
+          # ── Step 1: Verify all secrets are configured ──
+          for secret_name in SIGNING_KEYSTORE_BASE64 SIGNING_STORE_PASSWORD SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD; do
+            val=$(eval echo "\$$secret_name")
+            if [ -z "$val" ]; then
+              echo "::error::Secret '$secret_name' is not configured in repo Settings → Secrets"
+              exit 1
+            fi
+          done
+
+          # ── Step 2: Decode keystore ──
           echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > bubbletranslate.jks
+          if [ ! -s bubbletranslate.jks ]; then
+            echo "::error::Decoded keystore is empty — check SIGNING_KEYSTORE_BASE64 value"
+            exit 1
+          fi
 
-          # Find unsigned APK
-          UNSIGNED=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          # ── Step 3: Locate apksigner (preinstalled on ubuntu-latest) ──
+          APKSIGNER="${ANDROID_HOME}/build-tools/34.0.0/apksigner"
+          if [ ! -x "$APKSIGNER" ]; then
+            echo "::error::apksigner not found at $APKSIGNER"
+            echo "Available build-tools:"
+            ls -la "${ANDROID_HOME}/build-tools/" || true
+            exit 1
+          fi
+
+          # ── Step 4: Find unsigned APK ──
+          UNSIGNED=$(find app/build/outputs/apk/release -name "*.apk" -not -name "*-signed*" | head -1)
+          if [ -z "$UNSIGNED" ]; then
+            echo "::error::No unsigned APK found in app/build/outputs/apk/release/"
+            find app/build/outputs/apk/release -type f | head -20
+            exit 1
+          fi
+          echo "Unsigned APK: $UNSIGNED"
+
+          # ── Step 5: Sign ──
           SIGNED="app/build/outputs/apk/release/app-release-signed.apk"
-
-          # Sign with apksigner
-          $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
+          "$APKSIGNER" sign \
             --ks bubbletranslate.jks \
             --ks-pass pass:"$SIGNING_STORE_PASSWORD" \
             --ks-key-alias "$SIGNING_KEY_ALIAS" \
@@ -69,33 +88,29 @@ jobs:
             --out "$SIGNED" \
             "$UNSIGNED"
 
-          # Verify
-          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose "$SIGNED"
+          # ── Step 6: Verify ──
+          "$APKSIGNER" verify --verbose "$SIGNED"
 
-          # Replace unsigned with signed (rename with version)
-          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | sed "s/.*\"\\(.*\\)\".*/\\1/")
-          FINAL="app/build/outputs/apk/release/PopupTranslation-${VERSION_NAME}-arm64-v8a.apk"
-          rm "$UNSIGNED"
+          # ── Step 7: Rename with version ──
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          FINAL="app/build/outputs/apk/release/BubbleTranslate-${VERSION_NAME}-arm64-v8a.apk"
+          rm -f "$UNSIGNED"
           mv "$SIGNED" "$FINAL"
+          echo "Signed APK: $FINAL"
 
-          echo "signed=true" >> $GITHUB_OUTPUT
-
-      - name: Find APK
-        id: apk
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "app-release.apk" -o -name "*.apk" | head -1)
-          echo "path=$APK_PATH" >> $GITHUB_OUTPUT
-          echo "name=$(basename "$APK_PATH")" >> $GITHUB_OUTPUT
+          # ── Step 8: Export for downstream steps ──
+          echo "apk_path=$FINAL" >> $GITHUB_OUTPUT
+          echo "apk_name=$(basename "$FINAL")" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PopupTranslation-arm64-v8a
-          path: ${{ steps.apk.outputs.path }}
+          name: BubbleTranslate-arm64-v8a
+          path: app/build/outputs/apk/release/BubbleTranslate-*.apk
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.apk.outputs.path }}
+          files: app/build/outputs/apk/release/BubbleTranslate-*.apk
           generate_release_notes: true
