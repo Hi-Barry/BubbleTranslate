@@ -35,10 +35,10 @@ jobs:
           BRANCH=$(echo "${{ github.ref_name }}" | sed 's|/|-|g')
           COMMIT_HASH=$(git rev-parse --short HEAD)
           cp app/build/outputs/apk/debug/app-debug.apk \
-             "app/build/outputs/apk/debug/PopupTranslation-${BRANCH}-${COMMIT_HASH}-arm64-v8a.apk"
+             "app/build/outputs/apk/debug/BubbleTranslate-${BRANCH}-${COMMIT_HASH}-arm64-v8a.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PopupTranslation-bugfix-arm64-v8a
-          path: app/build/outputs/apk/debug/PopupTranslation-bugfix*.apk
+          name: BubbleTranslate-bugfix-arm64-v8a
+          path: app/build/outputs/apk/debug/BubbleTranslate-*.apk
